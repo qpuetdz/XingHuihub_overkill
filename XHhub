@@ -1,5 +1,3 @@
-local script_key = ""
-
 local function req(url, method, headers, body)
     if syn and syn.request then
         local r = syn.request({Url=url, Method=method, Headers=headers, Body=body, Timeout=15})
