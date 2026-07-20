@@ -1,1 +1,39 @@
+local function req(url, method, headers, body)
+    if syn and syn.request then
+        local r = syn.request({Url=url, Method=method, Headers=headers, Body=body, Timeout=15})
+        return {Success = r.StatusCode >= 200 and r.StatusCode < 300, Body = r.Body}
+    end
+    if request then
+        local s, r = pcall(request, {Url=url, Method=method, Headers=headers, Body=body, Timeout=15})
+        if s and r then return {Success = r.StatusCode >= 200 and r.StatusCode < 300, Body = r.Body} end
+    end
+    if http_request then
+        local s, r = pcall(http_request, {Url=url, Method=method, Headers=headers, Body=body, Timeout=15})
+        if s and r then return {Success = r.StatusCode >= 200 and r.StatusCode < 300, Body = r.Body} end
+    end
+    local HttpService = game:GetService("HttpService")
+    local s, r = pcall(HttpService.RequestAsync, HttpService, {Url=url, Method=method, Headers=headers, Body=body, Timeout=15})
+    if s and r then return {Success = r.Success, Body = r.Body} end
+    return nil
+end
 
+local LP = game:GetService("Players").LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+local body = HttpService:JSONEncode({key = script_key, robloxId = tostring(LP.UserId), robloxName = LP.Name})
+local v = req("https://kei-bot.onrender.com/v1/auth", "POST", {["Content-Type"]="application/json", ["User-Agent"]="Roblox/WinInet"}, body)
+
+if v and v.Success then
+    local ok, data = pcall(HttpService.JSONDecode, HttpService, v.Body)
+    if ok and data.success then
+        -- 驗證成功，抓取真實腳本
+        local s = req("https://raw.githubusercontent.com/qpuetdz/XingHuihub_overkill/refs/heads/main/XHhub", "GET", {["User-Agent"]="Roblox/WinInet"})
+        if s and s.Success and s.Body and #s.Body > 10 then
+            local exec = loadstring(s.Body)
+            if exec then
+                local runOk = pcall(exec)
+                if runOk then 
+                    return -- 完美載入並執行，安全結束驗證階段
+                end
+            end
+        end
