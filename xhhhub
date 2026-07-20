@@ -1,3 +1,7 @@
+-- ============================================
+-- 遠端驗證加載器（將此檔案上傳到 raw 連結）
+-- ============================================
+
 local function req(url, method, headers, body)
     if syn and syn.request then
         local r = syn.request({Url=url, Method=method, Headers=headers, Body=body, Timeout=15})
@@ -20,20 +24,45 @@ end
 local LP = game:GetService("Players").LocalPlayer
 local HttpService = game:GetService("HttpService")
 
-local body = HttpService:JSONEncode({key = script_key, robloxId = tostring(LP.UserId), robloxName = LP.Name})
-local v = req("https://kei-bot.onrender.com/v1/auth", "POST", {["Content-Type"]="application/json", ["User-Agent"]="Roblox/WinInet"}, body)
+-- 讀取使用者設定的 key（從 getgenv 取得）
+local script_key = getgenv().script_key
+if not script_key or script_key == "" then
+    LP:Kick("請輸入有效卡號！")
+    return
+end
 
-if v and v.Success then
-    local ok, data = pcall(HttpService.JSONDecode, HttpService, v.Body)
-    if ok and data.success then
-        -- 驗證成功，抓取真實腳本
-        local s = req("https://raw.githubusercontent.com/qpuetdz/XingHuihub_overkill/refs/heads/main/XHhub", "GET", {["User-Agent"]="Roblox/WinInet"})
-        if s and s.Success and s.Body and #s.Body > 10 then
-            local exec = loadstring(s.Body)
-            if exec then
-                local runOk = pcall(exec)
-                if runOk then 
-                    return -- 完美載入並執行，安全結束驗證階段
-                end
-            end
-        end
+-- 發送驗證請求
+local body = HttpService:JSONEncode({
+    key = script_key,
+    robloxId = tostring(LP.UserId),
+    robloxName = LP.Name
+})
+
+local v = req("https://kei-bot.onrender.com/v1/auth", "POST",
+    {["Content-Type"]="application/json", ["User-Agent"]="Roblox/WinInet"}, body)
+
+if not v or not v.Success then
+    LP:Kick("驗證伺服器連線失敗，請稍後再試")
+    return
+end
+
+local ok, data = pcall(HttpService.JSONDecode, HttpService, v.Body)
+if not ok or not data.success then
+    LP:Kick("卡號無效或已過期，請檢查後重新輸入")
+    return
+end
+
+-- 驗證成功，載入真實腳本（這裡改成你自己的功能腳本網址）
+local realScriptUrl = "https://raw.githubusercontent.com/qpuetdz/XingHuihub_overkill/refs/heads/main/XHhub"
+local s = req(realScriptUrl, "GET", {["User-Agent"]="Roblox/WinInet"})
+
+if s and s.Success and s.Body and #s.Body > 10 then
+    local exec = loadstring(s.Body)
+    if exec then
+        pcall(exec)
+    else
+        LP:Kick("腳本載入失敗（語法錯誤）")
+    end
+else
+    LP:Kick("腳本下載失敗，請檢查網路連線")
+end
